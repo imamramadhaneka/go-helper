@@ -1,0 +1,88 @@
+version: '2'
+services:
+  postgres:
+    image: 'postgres:12-alpine'
+    container_name: local-postgre
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: db_name
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./storage:/data/db/postgre
+    restart: on-failure
+
+  redis:
+    image: 'redis:5-alpine'
+    command: redis-server
+    container_name: local-redis
+    ports:
+      - 6379:6379
+    volumes:
+      - ./storage/redis:/data
+
+  mongodb:
+    image: mongo:4.4
+    container_name: local-mongo
+    environment:
+      - MONGO_DATA_DIR=/data/db
+      - MONGO_LOG_DIR=/dev/null
+      - MONGO_INITDB_DATABASE=db_name
+      - MONGO_INITDB_ROOT_USERNAME=user
+      - MONGO_INITDB_ROOT_PASSWORD=pass
+    restart: on-failure
+    ports:
+      - 27017:27017
+    volumes:
+      - ./storage:/data/db/mongo
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.21
+    container_name: local-jaeger
+    restart: on-failure
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "16686:16686"
+      - "14268:14268"
+      - "9411:9411"
+
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: local-zookeeper
+    ports:
+      - "2181:2181"
+    networks:
+      back-tier:
+    restart: on-failure
+
+  kafka:
+    image: wurstmeister/kafka
+    container_name: local-kafka
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: 127.0.0.1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ZOOKEEPER_TIMEOUT_MS: 36000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      back-tier:
+    restart: on-failure
+
+volumes:
+  my-db:
+
+
+networks:
+  es-net:
+    driver: bridge
+  web:
+    driver: bridge
+  back-tier:
